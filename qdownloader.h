@@ -33,22 +33,24 @@ class QDownloader : public QObject
 	Q_OBJECT
 	Q_DECLARE_PRIVATE(QDownloader)
 public:
+	typedef enum {
+		WriteOnDownload, WriteOnFinished
+	} WriteMode;
+
 	explicit QDownloader(QObject *parent = 0);
 	~QDownloader();
 
+	QDownloader::WriteMode writeMode() const;
+	void setWriteMoede(QDownloader::WriteMode pWriteMode);
+
 	void setUrls(const QStringList& urls);
-
 	void setSavePath(const QString& savePath);
-
 	void download(const QUrl& url);
-	//static int download(const QString& pUrl, const QString& savePath);
-
 	QString defaultSavePath(const QUrl& url);
-
-signals:
 
 public slots:
 	void start();
+	//void pause();
 	void cancel();
 	//void continueDownloads();
 
@@ -58,12 +60,13 @@ private:
 private slots:
 	//void slotFinished();
 	void slotFinished(QNetworkReply*);
-	//void slotReadyRead();
+	void slotReadyRead();
 	void slotError(QNetworkReply::NetworkError);
 	void updateProgress(qint64 byteRead, qint64 total);
 	//void slotAuthenticationRequired(QNetworkReply*,QAuthenticator*);
 
 private:
+	QDownloader::WriteMode mWriteMode;
 	QDownloaderPrivate *d_ptr;
 };
 

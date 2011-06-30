@@ -20,9 +20,10 @@
 #ifndef QDOWNLOADER_P_H
 #define QDOWNLOADER_P_H
 
+#include <QtCore/QFile>
 #include <QtCore/QObject>
 #include <QtCore/QUrl>
-#include <QtCore/QList>
+#include <QtCore/QMap>
 #include <QtNetwork/QNetworkAccessManager>
 
 class QDownloader;
@@ -31,7 +32,7 @@ class QDownloaderPrivate
 {
 	Q_DECLARE_PUBLIC(QDownloader)
 public:
-
+	QDownloaderPrivate() :currentReply(0),resumeBrokenTransfer(false){}
 	~QDownloaderPrivate() {
 		if (!urls.isEmpty())
 			urls.clear();
@@ -39,16 +40,16 @@ public:
 			qDeleteAll(downloads);
 			downloads.clear();
 		}
-		if (q_ptr) {
-			delete q_ptr;
-			q_ptr = NULL;
-		}
 	}
 
-	QList<QNetworkReply*> downloads;
+	QNetworkReply *currentReply;
+	QMap<QNetworkReply*, QFile*> downloads;
 	QNetworkAccessManager manager;
 	QList<QUrl> urls;
-	QString savePath;
+
+	bool resumeBrokenTransfer;
+	int failedDownloads, totalDownloads;
+	int numberThreads;
 
 	QDownloader* q_ptr;
 };

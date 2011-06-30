@@ -1,6 +1,7 @@
 断点续传,这个需要http服务器支持
 Qt 里面可以用QUrl::addQueryItem 来添加Content-Range
 
+
 multi-thread
 seek
 void	setRawHeader ( const QByteArray & headerName, const QByteArray & headerValue )

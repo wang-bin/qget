@@ -27,6 +27,7 @@
 QDownloader::QDownloader(QObject *parent) :
 	QObject(parent),d_ptr(new QDownloaderPrivate)
 {
+	mWriteMode = QDownloader::WriteOnDownload;
 	Q_D(QDownloader);
 	connect(&d->manager, SIGNAL(finished(QNetworkReply*)), SLOT(slotFinished(QNetworkReply*)));
 }
@@ -39,12 +40,23 @@ QDownloader::~QDownloader()
 	}
 }
 
+
+QDownloader::WriteMode QDownloader::writeMode() const
+{
+	return mWriteMode;
+}
+
+void QDownloader::setWriteMoede(QDownloader::WriteMode pWriteMode)
+{
+	mWriteMode = pWriteMode;
+}
+
 void QDownloader::setUrls(const QStringList &urls)
 {
 	Q_D(QDownloader);
 	if (!d->urls.isEmpty())
 		d->urls.clear();
-	foreach(QString url, urls) {
+	foreach(const QString& url, urls) {
 		d->urls.append(QUrl::fromEncoded(url.toAscii())); //toLocal8Bit()
 	}
 }
@@ -52,31 +64,18 @@ void QDownloader::setUrls(const QStringList &urls)
 
 void QDownloader::setSavePath(const QString &savePath)
 {
-	Q_D(QDownloader);
-	d->savePath = savePath;
 }
-/*
-int QDownloader::download(const QString &pUrl, const QString &savePath)
-{
-	static QDownloader downloader;
-	downloader.setUrls(pUrl);
-	downloader.setSavePath(savePath);
-	downloader.start();
-
-	return 0;
-}
-*/
 
 void QDownloader::download(const QUrl &url)
 {
 	Q_D(QDownloader);
 	QNetworkReply *reply = d->manager.get(QNetworkRequest(url));
 	//connect(reply, SIGNAL(finished()), SLOT(slotFinished()));
-	//connect(reply, SIGNAL(readyRead()), SLOT(slotReadyRead()));
+	connect(reply, SIGNAL(readyRead()), SLOT(slotReadyRead()));
 	connect(reply, SIGNAL(downloadProgress(qint64,qint64)), SLOT(updateProgress(qint64,qint64)));
 	connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), SLOT(slotError(QNetworkReply::NetworkError)));
 
-	d->downloads.append(reply);
+	d->downloads.insert(reply, new QFile(defaultSavePath(url)));
 }
 
 QString QDownloader::defaultSavePath(const QUrl &url)
@@ -86,17 +85,14 @@ QString QDownloader::defaultSavePath(const QUrl &url)
 
 	if (basename.isEmpty())
 		basename = "download";
-
 	if (QFile::exists(basename)) {
 		// already exists, don't overwrite
 		int i = 0;
 		basename += '.';
 		while (QFile::exists(basename + QString::number(i)))
 			++i;
-
 		basename += QString::number(i);
 	}
-
 	return basename;
 }
 
@@ -104,7 +100,8 @@ void QDownloader::start()
 {
 	Q_D(QDownloader);
 
-	foreach(QUrl url, d->urls) {
+	foreach(const QUrl& url, d->urls) {
+		qDebug("Starting: %s", qPrintable(url.toString()));
 		download(url);
 	}
 }
@@ -113,9 +110,14 @@ void QDownloader::cancel()
 {
 	Q_D(QDownloader);
 	//emit canceled?
-	foreach (QNetworkReply *reply, d->downloads) {
-		if(reply->isRunning())
+	foreach (QNetworkReply *reply, d->downloads.keys()) {
+		if(reply->isRunning()) {
 			reply->abort();
+			QFile *tmpFile = d->downloads[reply];
+			//Remove it or not, that's a problem!
+			if (!tmpFile->remove())
+				qWarning(qPrintable(tr("Failed to remove %1").arg(tmpFile->fileName())));
+		}
 	}
 }
 
@@ -123,11 +125,11 @@ bool QDownloader::saveToDisk(const QString &savePath, QIODevice *data)
 {
 	QFile file(savePath);
 	if (!file.open(QIODevice::WriteOnly)) {
-		qWarning(qPrintable(tr("Could not open %1 for writing: %2\n").arg(savePath, file.errorString())));
+		qWarning(qPrintable(tr("Could not open %1 for writing: %2\n").arg(QFileInfo(file).absoluteFilePath(), file.errorString())));
 		return false;
 	}
 	if (file.write(data->readAll())==-1) {
-		qWarning(qPrintable(tr("Could not write to %1:\n").arg(savePath, file.errorString())));
+		qWarning(qPrintable(tr("Could not write to %1:\n").arg(QFileInfo(file).absoluteFilePath(), file.errorString())));
 		return false;
 	}
 	file.close();
@@ -136,37 +138,70 @@ bool QDownloader::saveToDisk(const QString &savePath, QIODevice *data)
 
 void QDownloader::slotFinished(QNetworkReply* reply)
 {
-	//QNetworkReply *reply = ((QNetworkReply*)sender());
-	if (reply->canReadLine()) {
-		QUrl url = reply->url();
-		QString saveName = defaultSavePath(url);
-		if (saveToDisk(saveName, reply))
-			qDebug(qPrintable(tr("Download of %1 succeeded (saved to %2)").arg(url.toEncoded(), saveName)));
-	} else {
-		return;
-	}
+	qDebug("");
 	Q_D(QDownloader);
-	d->downloads.removeAll(reply);	//?
+	QUrl url = reply->url();
+	if (mWriteMode == QDownloader::WriteOnFinished) {
+		if (reply->canReadLine()) {
+			QString savePath = defaultSavePath(url);
+			if (saveToDisk(savePath, reply))
+				qDebug(qPrintable(tr("Download succeeded\n %1 ==> %2").arg(url.toString(), QFileInfo(savePath).absoluteFilePath())));
+		} else {
+			return;
+		}
+	} else {
+		QFile *saveFile =d->downloads.value(reply);
+		saveFile->close();
+		qDebug(qPrintable(tr("Download succeeded\n %1 ==> %2").arg(url.toString(), QFileInfo(*saveFile).absoluteFilePath())));
+	}
+	d->downloads.take(reply)->deleteLater(); //?
 	reply->deleteLater();			//?
 
-	if (d->downloads.isEmpty())
+	if (d->downloads.isEmpty()) {
 		QCoreApplication::instance()->quit();
+	}
+}
+
+void QDownloader::slotReadyRead()
+{
+	if (mWriteMode == QDownloader::WriteOnFinished)
+		return;
+
+	Q_D(QDownloader);
+	QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
+	QUrl url = reply->url();
+	QFile *saveFile = d->downloads.value(reply);
+
+	if (!saveFile->isOpen()) {
+		if (!saveFile->open(QIODevice::WriteOnly)) {
+			qWarning(qPrintable(tr("Could not open %1 for writing: %2\n").arg(saveFile->fileName(), saveFile->errorString())));
+			return;
+		}
+	}
+
+	if (!saveFile->atEnd()) {
+		saveFile->seek(saveFile->size());
+	}
+	if (saveFile->write(reply->readAll())==-1)
+		qWarning(qPrintable(tr("Could not write to %1:\n").arg(saveFile->fileName(), saveFile->errorString())));
 }
 
 void QDownloader::slotError(QNetworkReply::NetworkError)
 {
-	QNetworkReply *reply = ((QNetworkReply*)sender());
-	QUrl url = reply->url();
-	//TODO: convert QNetworkReply::NetworkError to string
-	qDebug(qPrintable(tr("Download from %1 error: %2").arg(url.toEncoded(), reply->errorString())));
+	QNetworkReply *reply = (QNetworkReply*)sender();
+	qWarning(qPrintable(tr("Download error: %2").arg(reply->errorString())));
 }
 
 void QDownloader::updateProgress(qint64 byteRead, qint64 total)
 {
-	QNetworkReply *reply = ((QNetworkReply*)sender());
-	QUrl url = reply->url();
-	QByteArray address = url.toEncoded();
+	Q_D(QDownloader);
+	QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
+	if (reply!=d->currentReply) {
+		d->currentReply = reply;
+		qDebug("");
+	}
 
-	//printf \r \b
-	printf("\r %s %d/%d", address.right(address.length()-address.lastIndexOf('/')-1).constData(), byteRead, total); //\b: back \r  本行开始处
+	QString fileName = reply->url().toString();
+	//QString fileName = d->downloads[d->currentReply]->fileName();
+	printf("\r%s %d/%d", qPrintable(fileName), byteRead, total); //\b:back \r:本行开始处
 }
