@@ -1,0 +1,79 @@
+断点续传,这个需要http服务器支持
+Qt 里面可以用QUrl::addQueryItem 来添加Content-Range
+
+multi-thread
+seek
+void	setRawHeader ( const QByteArray & headerName, const QByteArray & headerValue )
+void	setHeader ( KnownHeaders header, const QVariant & value )
+
+QHttpRequestHeader header("GET", QUrl::toPercentEncoding("/index.html"));
+header.setValue("Host", "www.trolltech.com");
+header.setValue("Range","bytes=1-100");
+header.setValue("Connection","close");
+
+http->setHost("www.trolltech.com");
+http->request(header);
+
+  QFile file( “文件全路径名" );
+file.open(QIODevice::ReadOnly) )
+int  file_length = file.size();
+
+
+QDataStream in(&file);
+m_buf = new char[file_len];
+in.readRawData( m_buf, file_len);
+file.close();
+
+ //准备头信息
+QNetworkRequest request( url );
+
+ //这句很重要，不然传二进制文件，服务器会说安全问题
+request.setHeader(QNetworkRequest::ContentTypeHeader, "application/octet-stream");
+request.setRawHeader("filename", filename.toUtf8() );
+//准备数据
+QByteArray arr = QByteArray( m_buf, file_len );
+_reply = _uploadManager->post( request , arr );
+connect(_reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(upLoadError(QNetworkReply::NetworkError)));
+connect(_reply, SIGNAL(uploadProgress ( qint64 ,qint64 )), this, SLOT( OnUploadProgress(qint64 ,qint64 )));
+
+(一)断点续传的原理
+
+	其实断点续传的原理很简单，就是在Http的请求上和一般的下载有所不同而已。打个比方，浏览器请求服务器上的一个文时，所发出的请求如下：
+	假设服务器域名为wwww.sjtu.edu.cn，文件名为down.zip。
+	GET /down.zip HTTP/1.1
+	Accept: image/gif, image/x-xbitmap, image/jpeg, image/pjpeg, application/vnd.ms-excel, application/msword, application/vnd.ms-powerpoint, */*
+	Accept-Language: zh-cn
+	Accept-Encoding: gzip, deflate
+	User-Agent: Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)
+	Connection: Keep-Alive
+
+	服务器收到请求后，按要求寻找请求的文件，提取文件的信息，然后返回给浏览器，返回信息如下：
+	200
+	Content-Length=106786028
+	Accept-Ranges=bytes
+	Date=Mon, 30 Apr 2001 12:56:11 GMT
+	ETag=W/"02ca57e173c11:95b"
+	Content-Type=application/octet-stream
+	Server=Microsoft-IIS/5.0
+	Last-Modified=Mon, 30 Apr 2001 12:56:11 GMT
+	所谓断点续传，也就是要从文件已经下载的地方开始继续下载。所以在客户端浏览器传给Web服务器的时候要多加一条信息--从哪里开始。
+	下面是用自己编的一个"浏览器"来传递请求信息给Web服务器，要求从2000070字节开始。
+	GET /down.zip HTTP/1.0
+	User-Agent: NetFox
+	RANGE: bytes=2000070-
+	Accept: text/html, image/gif, image/jpeg, *; q=.2, */*; q=.2
+	仔细看一下就会发现多了一行RANGE: bytes=2000070-；这一行的意思就是告诉服务器down.zip这个文件从2000070字节开始传，前面的字节不用传了。
+
+	服务器收到这个请求以后，返回的信息如下：
+	206
+	Content-Length=106786028
+	Content-Range=bytes 2000070-106786027/106786028
+	Date=Mon, 30 Apr 2001 12:55:20 GMT
+	ETag=W/"02ca57e173c11:95b"
+	Content-Type=application/octet-stream
+	Server=Microsoft-IIS/5.0
+	Last-Modified=Mon, 30 Apr 2001 12:55:20 GMT
+	和前面服务器返回的信息比较一下，就会发现增加了一行：
+	Content-Range=bytes 2000070-106786027/106786028
+	返回的代码也改为206了，而不再是200了。
+	知道了以上原理，就可以进行断点续传的编程了。
