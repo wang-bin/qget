@@ -18,23 +18,31 @@
 ******************************************************************************/
 
 #include <QtCore/QCoreApplication>
+#include <QtCore/QTranslator>
 
 #include "qdownloader.h"
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication a(argc, argv);
+	QCoreApplication a(argc, argv);
 
 	if (argc<2) {
-		qDebug("QDownloader - downloads all URLs in parallel\n"
-				"Usage: download url1 [url2... urlN]\n"
-				"\n"
-				"Downloads the URLs passed in the command-line to the local directory\n"
-				"If the target file already exists, a .0, .1, .2, etc. is appended to\n"
-				"differentiate.\n");
+		qDebug("%s - downloads all URLs in parallel\n"
+			"Usage: download url1 [url2... urlN]\n"
+			"\n"
+			"Downloads the URLs passed in the command-line to the local directory\n"
+			"If the target file already exists, a .0, .1, .2, etc. is appended to\n"
+			"differentiate.\n", qPrintable(a.applicationFilePath()));
 
 		return 0;
 	}
+
+	QTranslator appTranslator;
+	appTranslator.load("QDownloader-zh_CN", "i18n");
+	//a.installTranslator(&appTranslator);;
+	QTranslator qtTranslator;
+	qtTranslator.load("zh_CN");
+	a.installTranslator(&qtTranslator);
 
 	QDownloader qdown;
 	QStringList urls = a.arguments();

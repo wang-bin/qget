@@ -30,4 +30,4 @@ HEADERS += \
     qdownloader_p.h
 
 
-TRANSLATIONS += $(TARGET)-zh_CN.ts
+TRANSLATIONS += i18n/$$TARGET-zh_CN.ts

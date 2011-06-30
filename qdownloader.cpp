@@ -203,5 +203,5 @@ void QDownloader::updateProgress(qint64 byteRead, qint64 total)
 
 	QString fileName = reply->url().toString();
 	//QString fileName = d->downloads[d->currentReply]->fileName();
-	printf("\r%s %d/%d", qPrintable(fileName), byteRead, total); //\b:back \r:本行开始处
+	printf("\r%s %lld/%lld (%.1f%%)", qPrintable(fileName), byteRead, total, (double)(100.*byteRead/total)); //\b:back \r:本行开始处
 }
