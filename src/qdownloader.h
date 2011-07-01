@@ -33,6 +33,7 @@ class QDownloader : public QObject
 	Q_OBJECT
 	Q_DECLARE_PRIVATE(QDownloader)
 public:
+	// WriteOnDownload: use less RAM than when reading it at the finished() signal of the QNetworkReply
 	typedef enum {
 		WriteOnDownload, WriteOnFinished
 	} WriteMode;
@@ -43,16 +44,23 @@ public:
 	QDownloader::WriteMode writeMode() const;
 	void setWriteMoede(QDownloader::WriteMode pWriteMode);
 
+	//void append(const QUrl& url);
+	//void append(const QStringList& urls);
 	void setUrls(const QStringList& urls);
 	void setSavePath(const QString& savePath);
-	void download(const QUrl& url);
+	void download(const QUrl& url);					//rename statRequest
 	QString defaultSavePath(const QUrl& url);
+
+	//void cancelRequest(const QUrl& url);
+
+signals:
+	void finished();
 
 public slots:
 	void start();
 	//void pause();
-	void cancel();
-	//void continueDownloads();
+	//void resume();
+	void cancel();									//rename cancelAll
 
 private:
 	bool saveToDisk(const QString &savePath, QIODevice *data);

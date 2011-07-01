@@ -21,6 +21,7 @@
 #include "qdownloader_p.h"
 
 #include <QtCore/QCoreApplication>
+#include <QtCore/QTimer>
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 
@@ -103,6 +104,7 @@ void QDownloader::start()
 	foreach(const QUrl& url, d->urls) {
 		qDebug("Starting: %s", qPrintable(url.toString()));
 		download(url);
+		++d->totalDownloads;
 	}
 }
 
@@ -141,24 +143,44 @@ void QDownloader::slotFinished(QNetworkReply* reply)
 	qDebug("");
 	Q_D(QDownloader);
 	QUrl url = reply->url();
-	if (mWriteMode == QDownloader::WriteOnFinished) {
-		if (reply->canReadLine()) {
-			QString savePath = defaultSavePath(url);
-			if (saveToDisk(savePath, reply))
-				qDebug(qPrintable(tr("Download succeeded\n %1 ==> %2").arg(url.toString(), QFileInfo(savePath).absoluteFilePath())));
-		} else {
-			return;
-		}
+	QVariant redirectionTarget = reply->attribute(QNetworkRequest::RedirectionTargetAttribute);
+	if (reply->error()) {
+		qDebug(qPrintable(tr("Download failed: %1.").arg(reply->errorString())));
+	} else if (!redirectionTarget.isNull()) {
+		QUrl newUrl = url.resolved(redirectionTarget.toUrl());
+		qDebug(qPrintable(tr("Redirect to %1").arg(newUrl.toString())));
+		QFile *file = d->downloads.take(reply);
+		if (file->isOpen())
+			file->remove();
+		file->deleteLater(); //?
+		reply->deleteLater();			//?
+		download(newUrl);
+		return;
 	} else {
-		QFile *saveFile =d->downloads.value(reply);
-		saveFile->close();
-		qDebug(qPrintable(tr("Download succeeded\n %1 ==> %2").arg(url.toString(), QFileInfo(*saveFile).absoluteFilePath())));
+		if (mWriteMode == QDownloader::WriteOnFinished) {
+			if (reply->canReadLine()) {
+				QString savePath = defaultSavePath(url);
+				if (saveToDisk(savePath, reply)) {
+					qDebug(qPrintable(tr("Download succeeded\n %1 ==> %2").arg(url.toString(), QFileInfo(savePath).absoluteFilePath())));
+					++d->succeedDownloads;
+				}
+			} else {
+				return;
+			}
+		} else {
+			QFile *saveFile =d->downloads.value(reply);
+			saveFile->close();
+			qDebug(qPrintable(tr("Download succeeded\n %1 ==> %2").arg(url.toString(), QFileInfo(*saveFile).absoluteFilePath())));
+			++d->succeedDownloads;
+		}
 	}
 	d->downloads.take(reply)->deleteLater(); //?
 	reply->deleteLater();			//?
 
 	if (d->downloads.isEmpty()) {
-		QCoreApplication::instance()->quit();
+		qDebug(qPrintable(tr("Download finished. %1 succeeded, %2 failed").arg(d->succeedDownloads).arg(d->totalDownloads-d->succeedDownloads)));
+		QTimer::singleShot(0, this, SIGNAL(finished()));
+		//QCoreApplication::instance()->quit();  //move to main
 	}
 }
 
@@ -169,7 +191,6 @@ void QDownloader::slotReadyRead()
 
 	Q_D(QDownloader);
 	QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
-	QUrl url = reply->url();
 	QFile *saveFile = d->downloads.value(reply);
 
 	if (!saveFile->isOpen()) {
@@ -179,9 +200,9 @@ void QDownloader::slotReadyRead()
 		}
 	}
 
-	if (!saveFile->atEnd()) {
+	if (!saveFile->atEnd())
 		saveFile->seek(saveFile->size());
-	}
+
 	if (saveFile->write(reply->readAll())==-1)
 		qWarning(qPrintable(tr("Could not write to %1:\n").arg(saveFile->fileName(), saveFile->errorString())));
 }
@@ -203,5 +224,5 @@ void QDownloader::updateProgress(qint64 byteRead, qint64 total)
 
 	QString fileName = reply->url().toString();
 	//QString fileName = d->downloads[d->currentReply]->fileName();
-	printf("\r%s %lld/%lld (%.1f%%)", qPrintable(fileName), byteRead, total, (double)(100.*byteRead/total)); //\b:back \r:本行开始处
+	printf("\r%s %lld/%lld (%d%%)", qPrintable(fileName), byteRead, total, (100*byteRead)/total); //\b:back \r:本行开始处
 }

@@ -45,6 +45,7 @@ int main(int argc, char *argv[])
 	a.installTranslator(&qtTranslator);
 
 	QDownloader qdown;
+	QObject::connect(&qdown, SIGNAL(finished()), &a, SLOT(quit()));
 	QStringList urls = a.arguments();
 	urls.takeAt(0);
 	qdown.setUrls(urls);

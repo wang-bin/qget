@@ -13,21 +13,21 @@ CONFIG   += console
 CONFIG   -= app_bundle
 
 TEMPLATE = app
-DESTDIR	= ./
+DESTDIR	= bin
 MOC_DIR	= .moc
 unix:OBJECTS_DIR = .obj/unix
 win32:OBJECTS_DIR = .obj/win32
 macx:OBJECTS_DIR = .obj/macx
 
-SOURCES += main.cpp \
-    qdownloader.cpp
+SOURCES += src/main.cpp \
+	src/qdownloader.cpp
 
 OTHER_FILES += \
     Design.txt
 
 HEADERS += \
-    qdownloader.h \
-    qdownloader_p.h
+	src/qdownloader.h \
+	src/qdownloader_p.h
 
 
 TRANSLATIONS += i18n/$$TARGET-zh_CN.ts

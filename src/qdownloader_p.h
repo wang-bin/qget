@@ -22,9 +22,21 @@
 
 #include <QtCore/QFile>
 #include <QtCore/QObject>
+#include <QtCore/QTime>
 #include <QtCore/QUrl>
 #include <QtCore/QMap>
 #include <QtNetwork/QNetworkAccessManager>
+
+
+class QDownloadStatus
+{
+public:
+	QFile *file;
+	QString save_path;
+	qint64 byte_get, byte_total;
+	int time_left, speed;
+	QTime time;
+};
 
 class QDownloader;
 
@@ -32,7 +44,8 @@ class QDownloaderPrivate
 {
 	Q_DECLARE_PUBLIC(QDownloader)
 public:
-	QDownloaderPrivate() :currentReply(0),resumeBrokenTransfer(false){}
+	QDownloaderPrivate() :currentReply(0),resumeBrokenTransfer(false),succeedDownloads(0) \
+	,totalDownloads(0){}
 	~QDownloaderPrivate() {
 		if (!urls.isEmpty())
 			urls.clear();
@@ -48,7 +61,7 @@ public:
 	QList<QUrl> urls;
 
 	bool resumeBrokenTransfer;
-	int failedDownloads, totalDownloads;
+	int succeedDownloads, totalDownloads;
 	int numberThreads;
 
 	QDownloader* q_ptr;
