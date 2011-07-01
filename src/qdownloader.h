@@ -32,6 +32,9 @@ class QDownloader : public QObject
 {
 	Q_OBJECT
 	Q_DECLARE_PRIVATE(QDownloader)
+	Q_PROPERTY(WriteMode writeMode READ writeMode WRITE setWriteMoede)
+	Q_PROPERTY(bool overwite READ isOverwrite WRITE setOverwrite)
+	Q_ENUMS(WriteMode)
 public:
 	// WriteOnDownload: use less RAM than when reading it at the finished() signal of the QNetworkReply
 	typedef enum {
@@ -43,39 +46,42 @@ public:
 
 	QDownloader::WriteMode writeMode() const;
 	void setWriteMoede(QDownloader::WriteMode pWriteMode);
+	bool isOverwrite() const;
+	void setOverwrite(bool pOverwrite);
 
 	//void append(const QUrl& url);
 	//void append(const QStringList& urls);
 	void setUrls(const QStringList& urls);
-	void setSavePath(const QString& savePath);
+	void setSaveDir(const QString& pSaveDir);
 	void download(const QUrl& url);					//rename statRequest
 	QString defaultSavePath(const QUrl& url);
 
-	//void cancelRequest(const QUrl& url);
-
 signals:
-	void finished();
+	void finished(int); //0, 1
 
 public slots:
 	void start();
 	//void pause();
 	//void resume();
 	void cancel();									//rename cancelAll
+	void quitApp(int);
 
 private:
 	bool saveToDisk(const QString &savePath, QIODevice *data);
+	void cancelReply(QNetworkReply*);
 
 private slots:
-	//void slotFinished();
 	void slotFinished(QNetworkReply*);
 	void slotReadyRead();
 	void slotError(QNetworkReply::NetworkError);
 	void updateProgress(qint64 byteRead, qint64 total);
 	//void slotAuthenticationRequired(QNetworkReply*,QAuthenticator*);
 
+protected:
+	QDownloaderPrivate *d_ptr; //QDownloaderPrivate *const d_ptr;
 private:
 	QDownloader::WriteMode mWriteMode;
-	QDownloaderPrivate *d_ptr;
+
 };
 
 #endif // QDOWNLOADER_H

@@ -44,8 +44,8 @@ class QDownloaderPrivate
 {
 	Q_DECLARE_PUBLIC(QDownloader)
 public:
-	QDownloaderPrivate() :currentReply(0),resumeBrokenTransfer(false),succeedDownloads(0) \
-	,totalDownloads(0){}
+	QDownloaderPrivate() :currentReply(0),resumeBrokenTransfer(false),overwrite(true) \
+	,succeedDownloads(0),totalDownloads(0),saveDir("."){}
 	~QDownloaderPrivate() {
 		if (!urls.isEmpty())
 			urls.clear();
@@ -61,8 +61,10 @@ public:
 	QList<QUrl> urls;
 
 	bool resumeBrokenTransfer;
+	bool overwrite;
 	int succeedDownloads, totalDownloads;
 	int numberThreads;
+	QString saveDir;
 
 	QDownloader* q_ptr;
 };

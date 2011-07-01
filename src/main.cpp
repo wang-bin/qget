@@ -18,6 +18,7 @@
 ******************************************************************************/
 
 #include <QtCore/QCoreApplication>
+#include <QtCore/QLocale>
 #include <QtCore/QTranslator>
 
 #include "qdownloader.h"
@@ -34,19 +35,42 @@ int main(int argc, char *argv[])
 			"If the target file already exists, a .0, .1, .2, etc. is appended to\n"
 			"differentiate.\n", qPrintable(a.applicationFilePath()));
 
-		return 0;
+		return 1;
 	}
 
+	QString save_dir = "downloads";
+	QStringList args = a.arguments();
+	args.takeFirst();
+	QStringList::iterator it=args.begin();
+	while(it!=args.end()) {
+		if((*it).startsWith("-P")) {
+			if((*it)=="-P") {
+				it = args.erase(it);
+				save_dir = *it;
+				it = args.erase(it);
+			} else {
+				save_dir = (*it).mid(2);
+				it = args.erase(it);
+			}
+		} else {
+			++it;
+		}
+	}
+
+	QString locale = QLocale::system().name();
+	qDebug("locale: %s", qPrintable(locale));
 	QTranslator appTranslator;
-	appTranslator.load("QDownloader-zh_CN", "i18n");
-	//a.installTranslator(&appTranslator);;
+	appTranslator.load("QDownloader-"+locale, "i18n");
+	a.installTranslator(&appTranslator);;
 	QTranslator qtTranslator;
-	qtTranslator.load("zh_CN");
+	qtTranslator.load("qt_zh_CN");
 	a.installTranslator(&qtTranslator);
 
 	QDownloader qdown;
-	QObject::connect(&qdown, SIGNAL(finished()), &a, SLOT(quit()));
-	QStringList urls = a.arguments();
+	QObject::connect(&qdown, SIGNAL(finished(int)), &qdown, SLOT(quitApp(int)));
+	qdown.setOverwrite(true);
+	qdown.setSaveDir(save_dir);
+	QStringList urls = args;
 	urls.takeAt(0);
 	qdown.setUrls(urls);
 	qdown.start();

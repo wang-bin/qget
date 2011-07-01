@@ -21,7 +21,7 @@
 #include "qdownloader_p.h"
 
 #include <QtCore/QCoreApplication>
-#include <QtCore/QTimer>
+#include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 
@@ -52,6 +52,18 @@ void QDownloader::setWriteMoede(QDownloader::WriteMode pWriteMode)
 	mWriteMode = pWriteMode;
 }
 
+bool QDownloader::isOverwrite() const
+{
+	Q_D(const QDownloader);
+	return d->overwrite;
+}
+
+void QDownloader::setOverwrite(bool pOverwrite)
+{
+	Q_D(QDownloader);
+	d->overwrite = pOverwrite;
+}
+
 void QDownloader::setUrls(const QStringList &urls)
 {
 	Q_D(QDownloader);
@@ -63,15 +75,19 @@ void QDownloader::setUrls(const QStringList &urls)
 }
 
 
-void QDownloader::setSavePath(const QString &savePath)
+void QDownloader::setSaveDir(const QString &pSaveDir)
 {
+	Q_D(QDownloader);
+	d->saveDir = pSaveDir;
+	if (!QDir(d->saveDir).exists())
+		if (!QDir().mkdir(d->saveDir))
+			qDebug(qPrintable(tr("Failed to create dir").arg(d->saveDir)));
 }
 
 void QDownloader::download(const QUrl &url)
 {
 	Q_D(QDownloader);
 	QNetworkReply *reply = d->manager.get(QNetworkRequest(url));
-	//connect(reply, SIGNAL(finished()), SLOT(slotFinished()));
 	connect(reply, SIGNAL(readyRead()), SLOT(slotReadyRead()));
 	connect(reply, SIGNAL(downloadProgress(qint64,qint64)), SLOT(updateProgress(qint64,qint64)));
 	connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), SLOT(slotError(QNetworkReply::NetworkError)));
@@ -81,26 +97,28 @@ void QDownloader::download(const QUrl &url)
 
 QString QDownloader::defaultSavePath(const QUrl &url)
 {
+	Q_D(QDownloader);
 	QString path = url.path();
 	QString basename = QFileInfo(path).fileName();
 
 	if (basename.isEmpty())
 		basename = "download";
-	if (QFile::exists(basename)) {
-		// already exists, don't overwrite
+
+	path = d->saveDir+"/"+basename;
+
+	if (QFile::exists(path) && !d->overwrite) {
 		int i = 0;
 		basename += '.';
-		while (QFile::exists(basename + QString::number(i)))
-			++i;
+		while (QFile::exists(basename + QString::number(i))) ++i;
 		basename += QString::number(i);
+		path = d->saveDir+"/"+basename;
 	}
-	return basename;
+	return path;
 }
 
 void QDownloader::start()
 {
 	Q_D(QDownloader);
-
 	foreach(const QUrl& url, d->urls) {
 		qDebug("Starting: %s", qPrintable(url.toString()));
 		download(url);
@@ -111,16 +129,15 @@ void QDownloader::start()
 void QDownloader::cancel()
 {
 	Q_D(QDownloader);
-	//emit canceled?
 	foreach (QNetworkReply *reply, d->downloads.keys()) {
-		if(reply->isRunning()) {
-			reply->abort();
-			QFile *tmpFile = d->downloads[reply];
-			//Remove it or not, that's a problem!
-			if (!tmpFile->remove())
-				qWarning(qPrintable(tr("Failed to remove %1").arg(tmpFile->fileName())));
-		}
+		cancelReply(reply);
 	}
+	//emit canceled?
+}
+
+void QDownloader::quitApp(int exitCode)
+{
+	QCoreApplication::instance()->exit(exitCode);
 }
 
 bool QDownloader::saveToDisk(const QString &savePath, QIODevice *data)
@@ -138,34 +155,49 @@ bool QDownloader::saveToDisk(const QString &savePath, QIODevice *data)
 	return true;
 }
 
+
+void QDownloader::cancelReply(QNetworkReply *reply)
+{
+	Q_D(QDownloader);
+	if(reply->isRunning()) {
+		reply->abort();
+		QFile *tmpFile = d->downloads[reply];
+		//Remove it or not, that's a problem!
+		if (!tmpFile->remove())
+			qWarning(qPrintable(tr("Failed to remove %1").arg(tmpFile->fileName())));
+		qDebug(qPrintable(tr("Reply canceled: %1").arg(reply->url().toString())));
+	}
+	--d->succeedDownloads;
+}
+
 void QDownloader::slotFinished(QNetworkReply* reply)
 {
-	qDebug("");
+	qDebug(" ");
 	Q_D(QDownloader);
 	QUrl url = reply->url();
 	QVariant redirectionTarget = reply->attribute(QNetworkRequest::RedirectionTargetAttribute);
 	if (reply->error()) {
 		qDebug(qPrintable(tr("Download failed: %1.").arg(reply->errorString())));
+		--d->succeedDownloads;
 	} else if (!redirectionTarget.isNull()) {
 		QUrl newUrl = url.resolved(redirectionTarget.toUrl());
 		qDebug(qPrintable(tr("Redirect to %1").arg(newUrl.toString())));
+		//cancelPreply(reply);
 		QFile *file = d->downloads.take(reply);
 		if (file->isOpen())
 			file->remove();
 		file->deleteLater(); //?
-		reply->deleteLater();			//?
+		reply->deleteLater();//?
 		download(newUrl);
 		return;
 	} else {
 		if (mWriteMode == QDownloader::WriteOnFinished) {
-			if (reply->canReadLine()) {
-				QString savePath = defaultSavePath(url);
-				if (saveToDisk(savePath, reply)) {
-					qDebug(qPrintable(tr("Download succeeded\n %1 ==> %2").arg(url.toString(), QFileInfo(savePath).absoluteFilePath())));
-					++d->succeedDownloads;
-				}
+			QString savePath = defaultSavePath(url);
+			if (saveToDisk(savePath, reply)) {
+				qDebug(qPrintable(tr("Download succeeded\n %1 ==> %2").arg(url.toString(), QFileInfo(savePath).absoluteFilePath())));
+				++d->succeedDownloads;
 			} else {
-				return;
+				--d->succeedDownloads;
 			}
 		} else {
 			QFile *saveFile =d->downloads.value(reply);
@@ -179,8 +211,7 @@ void QDownloader::slotFinished(QNetworkReply* reply)
 
 	if (d->downloads.isEmpty()) {
 		qDebug(qPrintable(tr("Download finished. %1 succeeded, %2 failed").arg(d->succeedDownloads).arg(d->totalDownloads-d->succeedDownloads)));
-		QTimer::singleShot(0, this, SIGNAL(finished()));
-		//QCoreApplication::instance()->quit();  //move to main
+		emit finished(d->succeedDownloads==d->totalDownloads);
 	}
 }
 
@@ -210,7 +241,8 @@ void QDownloader::slotReadyRead()
 void QDownloader::slotError(QNetworkReply::NetworkError)
 {
 	QNetworkReply *reply = (QNetworkReply*)sender();
-	qWarning(qPrintable(tr("Download error: %2").arg(reply->errorString())));
+	qWarning(qPrintable(tr("Download error: %1").arg(reply->errorString())));
+	cancelReply(reply);
 }
 
 void QDownloader::updateProgress(qint64 byteRead, qint64 total)
@@ -219,10 +251,9 @@ void QDownloader::updateProgress(qint64 byteRead, qint64 total)
 	QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
 	if (reply!=d->currentReply) {
 		d->currentReply = reply;
-		qDebug("");
+		qDebug(" ");
 	}
 
 	QString fileName = reply->url().toString();
-	//QString fileName = d->downloads[d->currentReply]->fileName();
 	printf("\r%s %lld/%lld (%d%%)", qPrintable(fileName), byteRead, total, (100*byteRead)/total); //\b:back \r:本行开始处
 }
