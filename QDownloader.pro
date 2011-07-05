@@ -23,7 +23,8 @@ SOURCES += src/main.cpp \
 	src/qdownloader.cpp
 
 OTHER_FILES += \
-    Design.txt
+    Design.txt \
+    TODO.txt
 
 HEADERS += \
 	src/qdownloader.h \

@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 
 	if (argc<2) {
 		qDebug("%s - downloads all URLs in parallel\n"
-			"Usage: download url1 [url2... urlN]\n"
+			"Usage: download [-P save_dir] url1 [url2... urlN]\n"
 			"\n"
 			"Downloads the URLs passed in the command-line to the local directory\n"
 			"If the target file already exists, a .0, .1, .2, etc. is appended to\n"
@@ -71,8 +71,8 @@ int main(int argc, char *argv[])
 	qdown.setOverwrite(true);
 	qdown.setSaveDir(save_dir);
 	QStringList urls = args;
-	urls.takeAt(0);
 	qdown.setUrls(urls);
 	qdown.start();
+
 	return a.exec();
 }

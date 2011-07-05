@@ -137,6 +137,7 @@ void QDownloader::cancel()
 
 void QDownloader::quitApp(int exitCode)
 {
+	qDebug("exit code: %d", exitCode);
 	QCoreApplication::instance()->exit(exitCode);
 }
 
@@ -159,15 +160,18 @@ bool QDownloader::saveToDisk(const QString &savePath, QIODevice *data)
 void QDownloader::cancelReply(QNetworkReply *reply)
 {
 	Q_D(QDownloader);
+	qDebug("replies remain: %d", d->downloads.size());
 	if(reply->isRunning()) {
-		reply->abort();
+		qDebug("Running");
+		//reply->abort();  //FUCK!
 		QFile *tmpFile = d->downloads[reply];
 		//Remove it or not, that's a problem!
-		if (!tmpFile->remove())
-			qWarning(qPrintable(tr("Failed to remove %1").arg(tmpFile->fileName())));
+		qDebug("Removing file...");
+		if (tmpFile->exists())
+			if (!tmpFile->remove())
+				qWarning(qPrintable(tr("Failed to remove %1").arg(tmpFile->fileName())));
 		qDebug(qPrintable(tr("Reply canceled: %1").arg(reply->url().toString())));
 	}
-	--d->succeedDownloads;
 }
 
 void QDownloader::slotFinished(QNetworkReply* reply)
@@ -178,11 +182,10 @@ void QDownloader::slotFinished(QNetworkReply* reply)
 	QVariant redirectionTarget = reply->attribute(QNetworkRequest::RedirectionTargetAttribute);
 	if (reply->error()) {
 		qDebug(qPrintable(tr("Download failed: %1.").arg(reply->errorString())));
-		--d->succeedDownloads;
 	} else if (!redirectionTarget.isNull()) {
 		QUrl newUrl = url.resolved(redirectionTarget.toUrl());
 		qDebug(qPrintable(tr("Redirect to %1").arg(newUrl.toString())));
-		//cancelPreply(reply);
+		cancelReply(reply);
 		QFile *file = d->downloads.take(reply);
 		if (file->isOpen())
 			file->remove();
@@ -196,8 +199,6 @@ void QDownloader::slotFinished(QNetworkReply* reply)
 			if (saveToDisk(savePath, reply)) {
 				qDebug(qPrintable(tr("Download succeeded\n %1 ==> %2").arg(url.toString(), QFileInfo(savePath).absoluteFilePath())));
 				++d->succeedDownloads;
-			} else {
-				--d->succeedDownloads;
 			}
 		} else {
 			QFile *saveFile =d->downloads.value(reply);
@@ -211,7 +212,7 @@ void QDownloader::slotFinished(QNetworkReply* reply)
 
 	if (d->downloads.isEmpty()) {
 		qDebug(qPrintable(tr("Download finished. %1 succeeded, %2 failed").arg(d->succeedDownloads).arg(d->totalDownloads-d->succeedDownloads)));
-		emit finished(d->succeedDownloads==d->totalDownloads);
+		emit finished(d->succeedDownloads!=d->totalDownloads);
 	}
 }
 
@@ -255,5 +256,5 @@ void QDownloader::updateProgress(qint64 byteRead, qint64 total)
 	}
 
 	QString fileName = reply->url().toString();
-	printf("\r%s %lld/%lld (%d%%)", qPrintable(fileName), byteRead, total, (100*byteRead)/total); //\b:back \r:本行开始处
+	printf("\r%-s %lld/%lld (%d%%)", qPrintable(fileName), byteRead, total, (100*byteRead)/total); //\b:back \r:本行开始处
 }
