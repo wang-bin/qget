@@ -20,6 +20,7 @@
 #ifndef QDOWNLOADER_P_H
 #define QDOWNLOADER_P_H
 
+#include <limits>
 #include <QtCore/QFile>
 #include <QtCore/QObject>
 #include <QtCore/QTime>
@@ -27,14 +28,45 @@
 #include <QtCore/QMap>
 #include <QtNetwork/QNetworkAccessManager>
 
-
+const double kkinv = 1./1000.;
 class QDownloadStatus
 {
 public:
+	QDownloadStatus(const QString& save):byte_get(0),byte_total(std::numeric_limits<qint64>::max()) \
+	,time_left(std::numeric_limits<qint64>::max()),speed(0){
+		setSavePath(save);
+		time.start();
+	}
+	~QDownloadStatus() {
+		if (file->isOpen())
+			file->close();
+		if (file) {
+			delete file;
+			file = NULL;
+		}
+	}
+
+	void estimate(qint64 get, qint64 total) {
+		byte_get = get, byte_total = total;
+		time_elapsed = time.elapsed();
+		time_left = (byte_total-byte_get)*time_elapsed/(byte_get+1)*kkinv;
+		speed = (byte_get*1000)/(time_elapsed+1);
+		time_elapsed /= 1000;
+	}
+
+	bool setSavePath(const QString& save) {
+		save_path = save;
+		if (!save_path.isEmpty()) {
+			file = new QFile(save_path);
+			return file->open(QIODevice::WriteOnly);
+		}
+		return true;
+	}
+
 	QFile *file;
 	QString save_path;
 	qint64 byte_get, byte_total;
-	int time_left, speed;
+	int time_left, time_elapsed, speed;
 	QTime time;
 };
 
@@ -56,7 +88,7 @@ public:
 	}
 
 	QNetworkReply *currentReply;
-	QMap<QNetworkReply*, QFile*> downloads;
+	QMap<QNetworkReply*, QDownloadStatus*> downloads;
 	QNetworkAccessManager manager;
 	QList<QUrl> urls;
 

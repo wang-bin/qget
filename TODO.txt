@@ -1,2 +1,14 @@
+rename to QGet
+
+QGet
+QGetStatistic
+
+class QDownloadStatus {
+
+	AbstractProgressUI *progress;
+}
+class AbstractProgressUI
+
+
 wget output, commad line(src)
 kget

@@ -25,6 +25,8 @@
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 
+#include "convert.h"
+
 QDownloader::QDownloader(QObject *parent) :
 	QObject(parent),d_ptr(new QDownloaderPrivate)
 {
@@ -92,7 +94,7 @@ void QDownloader::download(const QUrl &url)
 	connect(reply, SIGNAL(downloadProgress(qint64,qint64)), SLOT(updateProgress(qint64,qint64)));
 	connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), SLOT(slotError(QNetworkReply::NetworkError)));
 
-	d->downloads.insert(reply, new QFile(defaultSavePath(url)));
+	d->downloads.insert(reply, new QDownloadStatus(defaultSavePath(url)));
 }
 
 QString QDownloader::defaultSavePath(const QUrl &url)
@@ -160,18 +162,18 @@ bool QDownloader::saveToDisk(const QString &savePath, QIODevice *data)
 void QDownloader::cancelReply(QNetworkReply *reply)
 {
 	Q_D(QDownloader);
-	qDebug("replies remain: %d", d->downloads.size());
 	if(reply->isRunning()) {
-		qDebug("Running");
 		//reply->abort();  //FUCK!
-		QFile *tmpFile = d->downloads[reply];
+		QFile *tmpFile = d->downloads[reply]->file;
 		//Remove it or not, that's a problem!
-		qDebug("Removing file...");
 		if (tmpFile->exists())
 			if (!tmpFile->remove())
 				qWarning(qPrintable(tr("Failed to remove %1").arg(tmpFile->fileName())));
 		qDebug(qPrintable(tr("Reply canceled: %1").arg(reply->url().toString())));
+		delete d->downloads.take(reply);
+		reply->deleteLater();
 	}
+	qDebug("replies remain: %d", d->downloads.size());
 }
 
 void QDownloader::slotFinished(QNetworkReply* reply)
@@ -186,7 +188,7 @@ void QDownloader::slotFinished(QNetworkReply* reply)
 		QUrl newUrl = url.resolved(redirectionTarget.toUrl());
 		qDebug(qPrintable(tr("Redirect to %1").arg(newUrl.toString())));
 		cancelReply(reply);
-		QFile *file = d->downloads.take(reply);
+		QFile *file = d->downloads.take(reply)->file;
 		if (file->isOpen())
 			file->remove();
 		file->deleteLater(); //?
@@ -197,17 +199,17 @@ void QDownloader::slotFinished(QNetworkReply* reply)
 		if (mWriteMode == QDownloader::WriteOnFinished) {
 			QString savePath = defaultSavePath(url);
 			if (saveToDisk(savePath, reply)) {
-				qDebug(qPrintable(tr("Download succeeded\n %1 ==> %2").arg(url.toString(), QFileInfo(savePath).absoluteFilePath())));
+				qDebug(qPrintable(tr("Download succeeded!\n[%1 ==> %2]").arg(url.toString(), QFileInfo(savePath).absoluteFilePath())));
 				++d->succeedDownloads;
 			}
 		} else {
-			QFile *saveFile =d->downloads.value(reply);
+			QFile *saveFile =d->downloads.value(reply)->file;
 			saveFile->close();
-			qDebug(qPrintable(tr("Download succeeded\n %1 ==> %2").arg(url.toString(), QFileInfo(*saveFile).absoluteFilePath())));
+			qDebug(qPrintable(tr("Download succeeded!\n[%1 ==> %2]").arg(url.toString(), QFileInfo(*saveFile).absoluteFilePath())));
 			++d->succeedDownloads;
 		}
 	}
-	d->downloads.take(reply)->deleteLater(); //?
+	delete d->downloads.take(reply);
 	reply->deleteLater();			//?
 
 	if (d->downloads.isEmpty()) {
@@ -223,7 +225,7 @@ void QDownloader::slotReadyRead()
 
 	Q_D(QDownloader);
 	QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
-	QFile *saveFile = d->downloads.value(reply);
+	QFile *saveFile = d->downloads.value(reply)->file;
 
 	if (!saveFile->isOpen()) {
 		if (!saveFile->open(QIODevice::WriteOnly)) {
@@ -250,11 +252,23 @@ void QDownloader::updateProgress(qint64 byteRead, qint64 total)
 {
 	Q_D(QDownloader);
 	QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
+	QString fileName = reply->url().toString();
 	if (reply!=d->currentReply) {
 		d->currentReply = reply;
-		qDebug(" ");
+		qDebug("\n%s", qPrintable(fileName));
 	}
 
-	QString fileName = reply->url().toString();
-	printf("\r%-s %lld/%lld (%d%%)", qPrintable(fileName), byteRead, total, (100*byteRead)/total); //\b:back \r:本行开始处
+	QDownloadStatus *ds = d->downloads.value(reply);
+	ds->estimate(byteRead, total);
+
+	static char get_str[11], total_str[11], speed_str[11], left_str[9];
+	memcpy(get_str, size2str(byteRead), sizeof(get_str));
+	memcpy(total_str, size2str(total), sizeof(total_str));
+	memcpy(speed_str, size2str(ds->speed), sizeof(speed_str));
+	memcpy(left_str, sec2str(ds->time_left), sizeof(left_str));
+	//qint64 -> %lld
+	//printf("\r %11s/%-11s %11s/s %7ds/%ds (%d%%)"
+	printf("\r %11s/%-11s %11s/s %s/%s (%d%%)" \
+	, get_str, total_str, speed_str, left_str, sec2str(ds->time_elapsed) \
+	, (100*byteRead)/total); //\b:back \r:本行开始处
 }
