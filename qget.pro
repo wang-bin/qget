@@ -25,7 +25,8 @@ SOURCES += src/main.cpp \
 
 OTHER_FILES += \
     Design.txt \
-    TODO.txt
+    TODO.txt \
+    README
 
 HEADERS += \
 	src/qget.h \

@@ -1,9 +1,8 @@
-rename to QGet
 
 QGet
 QGetStatistic
 
-class QDownloadStatus {
+class QGetStatus {
 
 	AbstractProgressUI *progress;
 }

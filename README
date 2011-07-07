@@ -1,0 +1,15 @@
+QtNetwork based downloader.
+Features:
+1. Download URLs in parallel.
+2. Complete download progress information. Including size get, size total, speed, elapsed time, remaining time.
+3. Specify download path.
+4. Save what gets while downloading.
+
+Usage:
+./qget [-P save_dir] url1 [url2 ... urlN]
+
+TODO:
+1. Add GUI and better CUI
+2. Resume broken transfer
+3. Muti-thread in on downloading
+
