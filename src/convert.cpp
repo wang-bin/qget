@@ -1,5 +1,5 @@
 /******************************************************************************
-	Name: description
+	Convert: convertion between string and size and time.
 	Copyright (C) 2011 Wang Bin <wbsecg1@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -65,7 +65,7 @@ char* msec2str(int pMsec)
 	int hour = pMsec/3600;
 	static char time[13];
 	//memset(time, ' ', sizeof(time));
-	snprintf(time, sizeof(time), "%02d:%02d:%02d.03d", hour, min, sec, ms);
+	snprintf(time, sizeof(time), "%02d:%02d:%02d.%03d", hour, min, sec, ms);
 	return time;
 }
 
