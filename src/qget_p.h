@@ -29,15 +29,15 @@
 #include <QtNetwork/QNetworkAccessManager>
 
 const double kkinv = 1./1000.;
-class QDownloadStatus
+class DownloadStatus
 {
 public:
-	QDownloadStatus(const QString& save):byte_get(0),byte_total(std::numeric_limits<qint64>::max()) \
+	DownloadStatus(const QString& save):byte_get(0),byte_total(std::numeric_limits<qint64>::max()) \
 	,time_left(std::numeric_limits<qint64>::max()),speed(0){
 		setSavePath(save);
 		time.start();
 	}
-	~QDownloadStatus() {
+	~DownloadStatus() {
 		if (file->isOpen())
 			file->close();
 		if (file) {
@@ -70,15 +70,15 @@ public:
 	QTime time;
 };
 
-class QDownloader;
+class QGet;
 
-class QDownloaderPrivate
+class QGetPrivate
 {
-	Q_DECLARE_PUBLIC(QDownloader)
+	Q_DECLARE_PUBLIC(QGet)
 public:
-	QDownloaderPrivate() :currentReply(0),resumeBrokenTransfer(false),overwrite(true) \
+	QGetPrivate() :currentReply(0),resumeBrokenTransfer(false),overwrite(true) \
 	,succeedDownloads(0),totalDownloads(0),saveDir("."){}
-	~QDownloaderPrivate() {
+	~QGetPrivate() {
 		if (!urls.isEmpty())
 			urls.clear();
 		if (!downloads.isEmpty()) {
@@ -88,7 +88,7 @@ public:
 	}
 
 	QNetworkReply *currentReply;
-	QMap<QNetworkReply*, QDownloadStatus*> downloads;
+	QMap<QNetworkReply*, DownloadStatus*> downloads;
 	QNetworkAccessManager manager;
 	QList<QUrl> urls;
 
@@ -98,7 +98,7 @@ public:
 	int numberThreads;
 	QString saveDir;
 
-	QDownloader* q_ptr;
+	QGet* q_ptr;
 };
 
 #endif // QDOWNLOADER_P_H

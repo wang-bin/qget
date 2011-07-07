@@ -24,14 +24,14 @@
 #include <QtCore/QStringList>
 #include <QtNetwork/QNetworkReply>
 
-class QDownloaderPrivate;
+class QGetPrivate;
 class QNetworkReply;
 class QAuthenticator;
 
-class QDownloader : public QObject
+class QGet : public QObject
 {
 	Q_OBJECT
-	Q_DECLARE_PRIVATE(QDownloader)
+	Q_DECLARE_PRIVATE(QGet)
 	Q_PROPERTY(WriteMode writeMode READ writeMode WRITE setWriteMoede)
 	Q_PROPERTY(bool overwite READ isOverwrite WRITE setOverwrite)
 	Q_ENUMS(WriteMode)
@@ -41,11 +41,11 @@ public:
 		WriteOnDownload, WriteOnFinished
 	} WriteMode;
 
-	explicit QDownloader(QObject *parent = 0);
-	~QDownloader();
+	explicit QGet(QObject *parent = 0);
+	~QGet();
 
-	QDownloader::WriteMode writeMode() const;
-	void setWriteMoede(QDownloader::WriteMode pWriteMode);
+	QGet::WriteMode writeMode() const;
+	void setWriteMoede(QGet::WriteMode pWriteMode);
 	bool isOverwrite() const;
 	void setOverwrite(bool pOverwrite);
 
@@ -78,9 +78,9 @@ private slots:
 	//void slotAuthenticationRequired(QNetworkReply*,QAuthenticator*);
 
 protected:
-	QDownloaderPrivate *d_ptr; //QDownloaderPrivate *const d_ptr;
+	QGetPrivate *d_ptr; //QGetPrivate *const d_ptr;
 private:
-	QDownloader::WriteMode mWriteMode;
+	QGet::WriteMode mWriteMode;
 
 };
 

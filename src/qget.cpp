@@ -17,8 +17,8 @@
 	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ******************************************************************************/
 
-#include "qdownloader.h"
-#include "qdownloader_p.h"
+#include "qget.h"
+#include "qget_p.h"
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
@@ -27,15 +27,15 @@
 
 #include "convert.h"
 
-QDownloader::QDownloader(QObject *parent) :
-	QObject(parent),d_ptr(new QDownloaderPrivate)
+QGet::QGet(QObject *parent) :
+	QObject(parent),d_ptr(new QGetPrivate)
 {
-	mWriteMode = QDownloader::WriteOnDownload;
-	Q_D(QDownloader);
+	mWriteMode = QGet::WriteOnDownload;
+	Q_D(QGet);
 	connect(&d->manager, SIGNAL(finished(QNetworkReply*)), SLOT(slotFinished(QNetworkReply*)));
 }
 
-QDownloader::~QDownloader()
+QGet::~QGet()
 {
 	if (d_ptr!=NULL) {
 		delete d_ptr;
@@ -44,31 +44,31 @@ QDownloader::~QDownloader()
 }
 
 
-QDownloader::WriteMode QDownloader::writeMode() const
+QGet::WriteMode QGet::writeMode() const
 {
 	return mWriteMode;
 }
 
-void QDownloader::setWriteMoede(QDownloader::WriteMode pWriteMode)
+void QGet::setWriteMoede(QGet::WriteMode pWriteMode)
 {
 	mWriteMode = pWriteMode;
 }
 
-bool QDownloader::isOverwrite() const
+bool QGet::isOverwrite() const
 {
-	Q_D(const QDownloader);
+	Q_D(const QGet);
 	return d->overwrite;
 }
 
-void QDownloader::setOverwrite(bool pOverwrite)
+void QGet::setOverwrite(bool pOverwrite)
 {
-	Q_D(QDownloader);
+	Q_D(QGet);
 	d->overwrite = pOverwrite;
 }
 
-void QDownloader::setUrls(const QStringList &urls)
+void QGet::setUrls(const QStringList &urls)
 {
-	Q_D(QDownloader);
+	Q_D(QGet);
 	if (!d->urls.isEmpty())
 		d->urls.clear();
 	foreach(const QString& url, urls) {
@@ -77,29 +77,29 @@ void QDownloader::setUrls(const QStringList &urls)
 }
 
 
-void QDownloader::setSaveDir(const QString &pSaveDir)
+void QGet::setSaveDir(const QString &pSaveDir)
 {
-	Q_D(QDownloader);
+	Q_D(QGet);
 	d->saveDir = pSaveDir;
 	if (!QDir(d->saveDir).exists())
 		if (!QDir().mkdir(d->saveDir))
 			qDebug(qPrintable(tr("Failed to create dir").arg(d->saveDir)));
 }
 
-void QDownloader::download(const QUrl &url)
+void QGet::download(const QUrl &url)
 {
-	Q_D(QDownloader);
+	Q_D(QGet);
 	QNetworkReply *reply = d->manager.get(QNetworkRequest(url));
 	connect(reply, SIGNAL(readyRead()), SLOT(slotReadyRead()));
 	connect(reply, SIGNAL(downloadProgress(qint64,qint64)), SLOT(updateProgress(qint64,qint64)));
 	connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), SLOT(slotError(QNetworkReply::NetworkError)));
 
-	d->downloads.insert(reply, new QDownloadStatus(defaultSavePath(url)));
+	d->downloads.insert(reply, new DownloadStatus(defaultSavePath(url)));
 }
 
-QString QDownloader::defaultSavePath(const QUrl &url)
+QString QGet::defaultSavePath(const QUrl &url)
 {
-	Q_D(QDownloader);
+	Q_D(QGet);
 	QString path = url.path();
 	QString basename = QFileInfo(path).fileName();
 
@@ -118,9 +118,9 @@ QString QDownloader::defaultSavePath(const QUrl &url)
 	return path;
 }
 
-void QDownloader::start()
+void QGet::start()
 {
-	Q_D(QDownloader);
+	Q_D(QGet);
 	foreach(const QUrl& url, d->urls) {
 		qDebug("Starting: %s", qPrintable(url.toString()));
 		download(url);
@@ -128,22 +128,22 @@ void QDownloader::start()
 	}
 }
 
-void QDownloader::cancel()
+void QGet::cancel()
 {
-	Q_D(QDownloader);
+	Q_D(QGet);
 	foreach (QNetworkReply *reply, d->downloads.keys()) {
 		cancelReply(reply);
 	}
 	//emit canceled?
 }
 
-void QDownloader::quitApp(int exitCode)
+void QGet::quitApp(int exitCode)
 {
 	qDebug("exit code: %d", exitCode);
 	QCoreApplication::instance()->exit(exitCode);
 }
 
-bool QDownloader::saveToDisk(const QString &savePath, QIODevice *data)
+bool QGet::saveToDisk(const QString &savePath, QIODevice *data)
 {
 	QFile file(savePath);
 	if (!file.open(QIODevice::WriteOnly)) {
@@ -159,9 +159,9 @@ bool QDownloader::saveToDisk(const QString &savePath, QIODevice *data)
 }
 
 
-void QDownloader::cancelReply(QNetworkReply *reply)
+void QGet::cancelReply(QNetworkReply *reply)
 {
-	Q_D(QDownloader);
+	Q_D(QGet);
 	if(reply->isRunning()) {
 		//reply->abort();  //FUCK!
 		QFile *tmpFile = d->downloads[reply]->file;
@@ -176,10 +176,10 @@ void QDownloader::cancelReply(QNetworkReply *reply)
 	qDebug("replies remain: %d", d->downloads.size());
 }
 
-void QDownloader::slotFinished(QNetworkReply* reply)
+void QGet::slotFinished(QNetworkReply* reply)
 {
 	qDebug(" ");
-	Q_D(QDownloader);
+	Q_D(QGet);
 	QUrl url = reply->url();
 	QVariant redirectionTarget = reply->attribute(QNetworkRequest::RedirectionTargetAttribute);
 	if (reply->error()) {
@@ -196,7 +196,7 @@ void QDownloader::slotFinished(QNetworkReply* reply)
 		download(newUrl);
 		return;
 	} else {
-		if (mWriteMode == QDownloader::WriteOnFinished) {
+		if (mWriteMode == QGet::WriteOnFinished) {
 			QString savePath = defaultSavePath(url);
 			if (saveToDisk(savePath, reply)) {
 				qDebug(qPrintable(tr("Download succeeded!\n[%1 ==> %2]").arg(url.toString(), QFileInfo(savePath).absoluteFilePath())));
@@ -218,12 +218,12 @@ void QDownloader::slotFinished(QNetworkReply* reply)
 	}
 }
 
-void QDownloader::slotReadyRead()
+void QGet::slotReadyRead()
 {
-	if (mWriteMode == QDownloader::WriteOnFinished)
+	if (mWriteMode == QGet::WriteOnFinished)
 		return;
 
-	Q_D(QDownloader);
+	Q_D(QGet);
 	QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
 	QFile *saveFile = d->downloads.value(reply)->file;
 
@@ -241,16 +241,16 @@ void QDownloader::slotReadyRead()
 		qWarning(qPrintable(tr("Could not write to %1:\n").arg(saveFile->fileName(), saveFile->errorString())));
 }
 
-void QDownloader::slotError(QNetworkReply::NetworkError)
+void QGet::slotError(QNetworkReply::NetworkError)
 {
 	QNetworkReply *reply = (QNetworkReply*)sender();
 	qWarning(qPrintable(tr("Download error: %1").arg(reply->errorString())));
 	cancelReply(reply);
 }
 
-void QDownloader::updateProgress(qint64 byteRead, qint64 total)
+void QGet::updateProgress(qint64 byteRead, qint64 total)
 {
-	Q_D(QDownloader);
+	Q_D(QGet);
 	QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
 	QString fileName = reply->url().toString();
 	if (reply!=d->currentReply) {
@@ -258,7 +258,7 @@ void QDownloader::updateProgress(qint64 byteRead, qint64 total)
 		qDebug("\n%s", qPrintable(fileName));
 	}
 
-	QDownloadStatus *ds = d->downloads.value(reply);
+	DownloadStatus *ds = d->downloads.value(reply);
 	ds->estimate(byteRead, total);
 
 	static char get_str[11], total_str[11], speed_str[11], left_str[9];

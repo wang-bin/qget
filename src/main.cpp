@@ -21,7 +21,7 @@
 #include <QtCore/QLocale>
 #include <QtCore/QTranslator>
 
-#include "qdownloader.h"
+#include "qget.h"
 
 int main(int argc, char *argv[])
 {
@@ -60,13 +60,13 @@ int main(int argc, char *argv[])
 	QString locale = QLocale::system().name();
 	qDebug("locale: %s", qPrintable(locale));
 	QTranslator appTranslator;
-	appTranslator.load("QDownloader-"+locale, "i18n");
+	appTranslator.load("QGet-"+locale, "i18n");
 	a.installTranslator(&appTranslator);;
 	QTranslator qtTranslator;
 	qtTranslator.load("qt_zh_CN");
 	a.installTranslator(&qtTranslator);
 
-	QDownloader qdown;
+	QGet qdown;
 	QObject::connect(&qdown, SIGNAL(finished(int)), &qdown, SLOT(quitApp(int)));
 	qdown.setOverwrite(true);
 	qdown.setSaveDir(save_dir);

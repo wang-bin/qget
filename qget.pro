@@ -8,7 +8,7 @@ QT       += core network
 
 QT       -= gui
 
-TARGET = QDownloader
+TARGET = qget
 CONFIG   += console
 CONFIG   -= app_bundle
 
@@ -20,7 +20,7 @@ win32:OBJECTS_DIR = .obj/win32
 macx:OBJECTS_DIR = .obj/macx
 
 SOURCES += src/main.cpp \
-	src/qdownloader.cpp \
+	src/qget.cpp \
     src/convert.cpp
 
 OTHER_FILES += \
@@ -28,8 +28,8 @@ OTHER_FILES += \
     TODO.txt
 
 HEADERS += \
-	src/qdownloader.h \
-	src/qdownloader_p.h \
+	src/qget.h \
+	src/qget_p.h \
     src/convert.h
 
 
