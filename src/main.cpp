@@ -22,11 +22,14 @@
 #include <QtCore/QTranslator>
 
 #include "qget.h"
+#include "version.h"
 
 int main(int argc, char *argv[])
 {
 	QCoreApplication a(argc, argv);
 
+	qDebug("%s %s %s\nCopyright (C) 2011 Wang Bin <wbsecg1@gmail.com>"
+			, APP_NAME, APP_VERSION_STR, __DATE__);
 	if (argc<2) {
 		qDebug("%s - downloads all URLs in parallel\n"
 			"Usage: download [-P save_dir] url1 [url2... urlN]\n"
