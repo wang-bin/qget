@@ -35,7 +35,7 @@ public:
 	DownloadStatus(const QString& save):byte_get(0),byte_total(std::numeric_limits<qint64>::max()) \
 	,time_left(std::numeric_limits<qint64>::max()),speed(0){
 		setSavePath(save);
-		time.start();
+		//time.start();
 	}
 	~DownloadStatus() {
 		if (file->isOpen())

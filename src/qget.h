@@ -71,6 +71,7 @@ private:
 	void cancelReply(QNetworkReply*);
 
 private slots:
+	void slotTransferStarted();
 	void slotFinished(QNetworkReply*);
 	void slotReadyRead();
 	void slotError(QNetworkReply::NetworkError);

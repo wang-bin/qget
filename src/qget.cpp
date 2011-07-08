@@ -90,6 +90,7 @@ void QGet::download(const QUrl &url)
 {
 	Q_D(QGet);
 	QNetworkReply *reply = d->manager.get(QNetworkRequest(url));
+	connect(reply, SIGNAL(metaDataChanged()), SLOT(slotTransferStarted()));
 	connect(reply, SIGNAL(readyRead()), SLOT(slotReadyRead()));
 	connect(reply, SIGNAL(downloadProgress(qint64,qint64)), SLOT(updateProgress(qint64,qint64)));
 	connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), SLOT(slotError(QNetworkReply::NetworkError)));
@@ -176,6 +177,15 @@ void QGet::cancelReply(QNetworkReply *reply)
 	qDebug("replies remain: %d", d->downloads.size());
 }
 
+void QGet::slotTransferStarted()
+{
+	Q_D(QGet);
+	QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
+	QString fileName = reply->url().toString();
+	qDebug("Connected to %s. Start transfering data...", qPrintable(fileName));
+	d->downloads[reply]->time.start();
+}
+
 void QGet::slotFinished(QNetworkReply* reply)
 {
 	qDebug(" ");
@@ -255,7 +265,7 @@ void QGet::updateProgress(qint64 byteRead, qint64 total)
 	QString fileName = reply->url().toString();
 	if (reply!=d->currentReply) {
 		d->currentReply = reply;
-		qDebug("\n%s", qPrintable(fileName));
+		qDebug("\nUrl: %s", qPrintable(fileName));
 	}
 
 	DownloadStatus *ds = d->downloads.value(reply);
