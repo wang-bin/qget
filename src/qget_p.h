@@ -34,7 +34,7 @@ const double kkinv = 1./1000.;
 class DownloadStatus
 {
 public:
-	DownloadStatus(const QString& save):byte_get(0),byte_total(std::numeric_limits<qint64>::max()) \
+	DownloadStatus(const QString& save):progress(0),byte_get(0),byte_total(std::numeric_limits<qint64>::max()) \
 	,time_remain(std::numeric_limits<qint64>::max()),speed(0){
 		setSavePath(save);
 		//time.start();
@@ -45,6 +45,10 @@ public:
 		if (file) {
 			delete file;
 			file = NULL;
+		}
+		if (progress) {
+			delete progress;
+			progress = NULL;
 		}
 	}
 
