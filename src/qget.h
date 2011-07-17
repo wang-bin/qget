@@ -34,6 +34,7 @@ class QGet : public QObject
 	Q_DECLARE_PRIVATE(QGet)
 	Q_PROPERTY(WriteMode writeMode READ writeMode WRITE setWriteMoede)
 	Q_PROPERTY(bool overwite READ isOverwrite WRITE setOverwrite)
+	Q_PROPERTY(bool parallel READ isParallel WRITE setParallel)
 	Q_ENUMS(WriteMode)
 public:
 	// WriteOnDownload: use less RAM than when reading it at the finished() signal of the QNetworkReply
@@ -41,13 +42,20 @@ public:
 		WriteOnDownload, WriteOnFinished
 	} WriteMode;
 
+	typedef enum {
+		Gui, Cui
+	} UiType;
+
 	explicit QGet(QObject *parent = 0);
 	~QGet();
 
+	void setUiType(UiType ui);
 	QGet::WriteMode writeMode() const;
 	void setWriteMoede(QGet::WriteMode pWriteMode);
 	bool isOverwrite() const;
 	void setOverwrite(bool pOverwrite);
+	bool isParallel() const;
+	void setParallel(bool parallel);
 
 	//void append(const QUrl& url);
 	//void append(const QStringList& urls);
@@ -82,6 +90,7 @@ protected:
 	QGetPrivate *d_ptr; //QGetPrivate *const d_ptr;
 private:
 	QGet::WriteMode mWriteMode;
+	UiType mUi;
 
 };
 

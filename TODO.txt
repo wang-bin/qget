@@ -2,6 +2,9 @@
 QGet
 QGetStatistic
 
+parallel or 1by1
+
+
 class QGetStatus {
 
 	AbstractProgressUI *progress;

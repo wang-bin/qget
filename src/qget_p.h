@@ -28,12 +28,14 @@
 #include <QtCore/QMap>
 #include <QtNetwork/QNetworkAccessManager>
 
+#include "ui/progressui.h"
+
 const double kkinv = 1./1000.;
 class DownloadStatus
 {
 public:
 	DownloadStatus(const QString& save):byte_get(0),byte_total(std::numeric_limits<qint64>::max()) \
-	,time_left(std::numeric_limits<qint64>::max()),speed(0){
+	,time_remain(std::numeric_limits<qint64>::max()),speed(0){
 		setSavePath(save);
 		//time.start();
 	}
@@ -49,7 +51,7 @@ public:
 	void estimate(qint64 get, qint64 total) {
 		byte_get = get, byte_total = total;
 		time_elapsed = time.elapsed();
-		time_left = (byte_total-byte_get)*time_elapsed/(byte_get+1)*kkinv;
+		time_remain = (byte_total-byte_get)*time_elapsed/(byte_get+1)*kkinv;
 		speed = (byte_get*1000)/(time_elapsed+1);
 		time_elapsed /= 1000;
 	}
@@ -63,10 +65,20 @@ public:
 		return true;
 	}
 
+	void updateProgress() {
+		progress->setMaximum(byte_total);
+		progress->setValue(byte_get);
+		progress->setTimeRemain(time_remain);
+		progress->setTimeElapsed(time_elapsed);
+		progress->setSpeed(speed);
+		progress->update();
+	}
+
+	ProgressUI *progress;
 	QFile *file;
 	QString save_path;
 	qint64 byte_get, byte_total;
-	int time_left, time_elapsed, speed;
+	int time_remain, time_elapsed, speed;
 	QTime time;
 };
 
@@ -76,7 +88,7 @@ class QGetPrivate
 {
 	Q_DECLARE_PUBLIC(QGet)
 public:
-	QGetPrivate() :currentReply(0),resumeBrokenTransfer(false),overwrite(true) \
+	QGetPrivate() :currentReply(0),parallel(true), resumeBrokenTransfer(false),overwrite(true) \
 	,succeedDownloads(0),totalDownloads(0),saveDir("."){}
 	~QGetPrivate() {
 		if (!urls.isEmpty())
@@ -92,7 +104,7 @@ public:
 	QNetworkAccessManager manager;
 	QList<QUrl> urls;
 
-	bool resumeBrokenTransfer;
+	bool parallel, resumeBrokenTransfer;
 	bool overwrite;
 	int succeedDownloads, totalDownloads;
 	int numberThreads;

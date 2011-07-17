@@ -14,6 +14,22 @@ public:
 class TextProgress {
 
 }
+
+
+class ProgressGUI
+{
+static QGetMainWindow* mainWindow = 0;
+ProgressGUI(QWidget*) {
+	if(mainWindow) {
+	//layout or QListWidget?
+		mainWindow->layout()->addWidget(this);
+		...
+	} else {
+		mainWindow = new QGetMainWindow;
+		layout
+	}
+
+}
 multi-thread
 seek
 void	setRawHeader ( const QByteArray & headerName, const QByteArray & headerValue )

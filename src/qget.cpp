@@ -26,11 +26,13 @@
 #include <QtCore/QFileInfo>
 
 #include "convert.h"
+#include "ui/cui/progresscui.h"
 
 QGet::QGet(QObject *parent) :
 	QObject(parent),d_ptr(new QGetPrivate)
 {
 	mWriteMode = QGet::WriteOnDownload;
+	mUi = QGet::Cui;
 	Q_D(QGet);
 	connect(&d->manager, SIGNAL(finished(QNetworkReply*)), SLOT(slotFinished(QNetworkReply*)));
 }
@@ -43,6 +45,10 @@ QGet::~QGet()
 	}
 }
 
+void QGet::setUiType(UiType ui)
+{
+	mUi = ui;
+}
 
 QGet::WriteMode QGet::writeMode() const
 {
@@ -64,6 +70,18 @@ void QGet::setOverwrite(bool pOverwrite)
 {
 	Q_D(QGet);
 	d->overwrite = pOverwrite;
+}
+
+bool QGet::isParallel() const
+{
+	Q_D(const QGet);
+	return d->parallel;
+}
+
+void QGet::setParallel(bool parallel)
+{
+	Q_D(QGet);
+	d->parallel = parallel;
 }
 
 void QGet::setUrls(const QStringList &urls)
@@ -95,7 +113,10 @@ void QGet::download(const QUrl &url)
 	connect(reply, SIGNAL(downloadProgress(qint64,qint64)), SLOT(updateProgress(qint64,qint64)));
 	connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), SLOT(slotError(QNetworkReply::NetworkError)));
 
-	d->downloads.insert(reply, new DownloadStatus(defaultSavePath(url)));
+	DownloadStatus* status = new DownloadStatus(defaultSavePath(url));
+	if (mUi==QGet::Cui)
+		status->progress = new ProgressUI(new ProgressCUI);
+	d->downloads.insert(reply, status);
 }
 
 QString QGet::defaultSavePath(const QUrl &url)
@@ -270,15 +291,5 @@ void QGet::updateProgress(qint64 byteRead, qint64 total)
 
 	DownloadStatus *ds = d->downloads.value(reply);
 	ds->estimate(byteRead, total);
-
-	static char get_str[11], total_str[11], speed_str[11], left_str[9];
-	memcpy(get_str, size2str(byteRead), sizeof(get_str));
-	memcpy(total_str, size2str(total), sizeof(total_str));
-	memcpy(speed_str, size2str(ds->speed), sizeof(speed_str));
-	memcpy(left_str, sec2str(ds->time_left), sizeof(left_str));
-	//qint64 -> %lld
-	//printf("\r %11s/%-11s %11s/s %7ds/%ds (%d%%)"
-	printf("\r %11s/%-11s %11s/s %s/%s (%d%%)" \
-	, get_str, total_str, speed_str, left_str, sec2str(ds->time_elapsed) \
-	, (100*byteRead)/total); //\b:back \r:本行开始处
+	ds->updateProgress();
 }
