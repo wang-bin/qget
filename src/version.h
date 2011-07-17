@@ -20,6 +20,8 @@
 #ifndef VERSION_H
 #define VERSION_H
 
+#include <stdio.h>
+
 template<int major, int minor, int patch>
 char* version_str()
 {

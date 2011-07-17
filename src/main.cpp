@@ -63,16 +63,17 @@ int main(int argc, char *argv[])
 	QString locale = QLocale::system().name();
 	qDebug("locale: %s", qPrintable(locale));
 	QTranslator appTranslator;
-	appTranslator.load("QGet-"+locale, "i18n");
+	appTranslator.load(APP_NAME+locale, "i18n");
 	a.installTranslator(&appTranslator);;
 	QTranslator qtTranslator;
-	qtTranslator.load("qt_zh_CN");
+	qtTranslator.load("qt_"+locale);
 	a.installTranslator(&qtTranslator);
 
 	QGet qdown;
 	QObject::connect(&qdown, SIGNAL(finished(int)), &qdown, SLOT(quitApp(int)));
 	qdown.setOverwrite(true);
 	qdown.setSaveDir(save_dir);
+	//setUiType()
 	QStringList urls = args;
 	qdown.setUrls(urls);
 	qdown.start();

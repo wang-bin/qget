@@ -50,6 +50,7 @@ char* size2str(size_t a)
 	while(a>>iShift[++i]); --i;//q>>=iShift[--i];
 #endif
 	unsigned int r = ((a&iMask[i])>>iShift[i-1])*K2Ki; //(unsigned int)((a&iMask[i])*K2Ki)>>iShift[i-1];
+	//static will not return local variable
 	static char ss[11];
 	//memset(ss, ' ', sizeof(ss));
 	snprintf(ss, sizeof(ss), "%d.%03d%-2s", a>>iShift[i], r, unit[i]);
