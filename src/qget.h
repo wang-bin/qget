@@ -74,6 +74,9 @@ public slots:
 	void cancel();									//rename cancelAll
 	void quitApp(int);
 
+protected:
+	virtual void timerEvent(QTimerEvent *);
+
 private:
 	bool saveToDisk(const QString &savePath, QIODevice *data);
 	void cancelReply(QNetworkReply*);

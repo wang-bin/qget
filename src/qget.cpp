@@ -148,6 +148,7 @@ void QGet::start()
 		download(url);
 		++d->totalDownloads;
 	}
+	startTimer(1000);
 }
 
 void QGet::cancel()
@@ -163,6 +164,15 @@ void QGet::quitApp(int exitCode)
 {
 	qDebug("exit code: %d", exitCode);
 	QCoreApplication::instance()->exit(exitCode);
+}
+
+void QGet::timerEvent(QTimerEvent *)
+{
+	Q_D(QGet);
+	foreach(DownloadStatus *status, d->downloads.values()) {
+		if (d->downloads.key(status)->isRunning()) //do not update unconnected status
+			status->updateProgress();
+	}
 }
 
 bool QGet::saveToDisk(const QString &savePath, QIODevice *data)
