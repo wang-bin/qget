@@ -26,6 +26,8 @@
 #include <QtCore/QTime>
 #include <QtCore/QUrl>
 #include <QtCore/QMap>
+#include <QtCore/QMutex>
+#include <QtCore/QMutexLocker>
 #include <QtNetwork/QNetworkAccessManager>
 
 #include "ui/progressui.h"
@@ -53,6 +55,7 @@ public:
 	}
 
 	void estimate(qint64 get, qint64 total) {
+		QMutexLocker locker(&mutex);
 		byte_get = get, byte_total = total;
 		time_elapsed = time.elapsed();
 		time_remain = (byte_total-byte_get)*time_elapsed/(byte_get+1)*kkinv;
@@ -70,6 +73,7 @@ public:
 	}
 
 	void updateProgress() {
+		QMutexLocker locker(&mutex);
 		progress->setMaximum(byte_total);
 		progress->setValue(byte_get);
 		progress->setTimeRemain(time_remain);
@@ -84,6 +88,7 @@ public:
 	qint64 byte_get, byte_total;
 	int time_remain, time_elapsed, speed;
 	QTime time;
+	QMutex mutex;
 };
 
 class QGet;
