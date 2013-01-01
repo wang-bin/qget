@@ -56,7 +56,9 @@ public:
 
 	void estimate(qint64 get, qint64 total) {
 		QMutexLocker locker(&mutex);
-		byte_get = get, byte_total = total;
+        if (total != 0)
+            byte_total = total;
+        byte_get = get;
 		time_elapsed = time.elapsed();
 		time_remain = (byte_total-byte_get)*time_elapsed/(byte_get+1)*kkinv;
 		speed = (byte_get*1000)/(time_elapsed+1);
